@@ -1,0 +1,2 @@
+// Verified public project data only. No email, UID, room, password or secret key.
+export const passwordConfig = Object.freeze({"publishableKey":"sb_publishable_aH-JCreRXCYNiy1MAq4cng_087BZPeV","callbackUrl":"https://roblestsai-cell.github.io/year-end-party-game/set-password.html","loginUrl":"https://roblestsai-cell.github.io/year-end-party-game/","projectUrl":"https://qujufxbnciniiauvhfun.supabase.co"});
