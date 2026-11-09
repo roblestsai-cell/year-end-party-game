@@ -12,8 +12,10 @@ export function parsePasswordLanding({hash='',search='',pageUrl,framed=false},no
   if(search)fail('unsupported_link');
   if(typeof hash!=='string'||hash.length>40000||!hash.startsWith('#'))fail('invalid_link');
   const params=new URLSearchParams(hash.slice(1));
-  const allowed=new Set(['access_token','refresh_token','token_type','type','expires_in','expires_at']);
+  const allowed=new Set(['access_token','refresh_token','token_type','type','expires_in','expires_at','sb']);
   for(const k of params.keys())if(!allowed.has(k)||params.getAll(k).length!==1)fail('invalid_link');
+  // Official Supabase Auth redirects include an empty sb identifier.
+  if(params.has('sb')&&params.get('sb')!=='')fail('invalid_link');
   if(!['invite','recovery'].includes(params.get('type'))||params.get('token_type')!=='bearer')fail('invalid_link');
   const access_token=params.get('access_token'),refresh_token=params.get('refresh_token');
   if(typeof access_token!=='string'||access_token.length>16384||!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(access_token)||typeof refresh_token!=='string'||!refresh_token||refresh_token.length>16384||!/^[!-~]+$/.test(refresh_token))fail('invalid_link');
