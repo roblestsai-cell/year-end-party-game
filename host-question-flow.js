@@ -1,21 +1,19 @@
-// External-v1 requires reveal before next; suppress that intermediate answer.
+// External-v1 requires reveal before next. A server-side reveal is not permission
+// to show the answer here: this tab must explicitly request display for this item.
 export function createHostQuestionFlow({adapter,onChange=()=>{}}){
-  let active=false,generation=0,suppressed=null,observed=null;
+  let active=false,generation=0,disclosed=null,observed=null;
   const identity=s=>s&&Number.isSafeInteger(s.epoch)&&s.host?.questionId?JSON.stringify([s.epoch,s.host.questionId,s.index??null]):null;
   const current=()=>{const v=adapter.getState();return v.role==='host'?identity(v.snapshot):null;};
-  function sync(){const id=current();if(id!==observed){observed=id;generation++;suppressed=null;}}
+  function sync(){const id=current();if(id!==observed){observed=id;generation++;disclosed=null;}}
   const allowed=()=>{const v=adapter.getState();return v.role==='host'&&v.status==='connected'&&!v.busy&&!v.pending&&adapter.isFresh();};
   const error=code=>Object.assign(new Error(code),{code});
   const canNext=()=>!active&&allowed()&&(adapter.canCommand('next')||adapter.canCommand('reveal'));
-  const canReveal=()=>!active&&allowed()&&(adapter.canCommand('reveal')||(adapter.getState().snapshot?.phase==='revealed'&&suppressed===current()));
+  const canReveal=()=>!active&&allowed()&&(adapter.canCommand('reveal')||(adapter.getState().snapshot?.phase==='revealed'&&disclosed!==current()));
   function assertFence(id,token){sync();if(generation!==token||current()!==id)throw error('question_changed');if(!allowed())throw error('action_not_allowed');}
   async function next(){
     sync();if(!canNext())throw error('action_not_allowed');
     const id=current(),token=generation;if(!id)throw error('action_not_allowed');
-    active=true;
-    // Set before command(): adapter emits revealed snapshots synchronously.
-    if(adapter.getState().snapshot.phase!=='revealed')suppressed=id;
-    onChange();
+    active=true;disclosed=null;onChange();
     try{
       if(adapter.getState().snapshot.phase!=='revealed'){
         const receipt=await adapter.command('reveal');
@@ -29,10 +27,16 @@ export function createHostQuestionFlow({adapter,onChange=()=>{}}){
   }
   async function reveal(){
     sync();if(!canReveal())throw error('action_not_allowed');
-    if(adapter.getState().snapshot.phase==='revealed'){suppressed=null;onChange();return {status:'already_revealed'};}
-    active=true;suppressed=null;onChange();
-    try{return await adapter.command('reveal');}finally{active=false;sync();onChange();}
+    const id=current(),token=generation;if(!id)throw error('action_not_allowed');
+    if(adapter.getState().snapshot.phase==='revealed'){disclosed=id;onChange();return {status:'already_revealed'};}
+    active=true;disclosed=null;onChange();
+    try{
+      const receipt=await adapter.command('reveal');
+      if(receipt?.status!=='committed')throw error('receipt_mismatch');
+      assertFence(id,token);disclosed=id;return receipt;
+    }finally{active=false;sync();onChange();}
   }
-  function isRevealSuppressed(snapshot=adapter.getState().snapshot){sync();return suppressed!==null&&identity(snapshot)===suppressed;}
-  sync();return Object.freeze({sync,canNext,next,canReveal,reveal,isRevealSuppressed,get busy(){return active;}});
+  function isRevealSuppressed(snapshot=adapter.getState().snapshot){sync();return disclosed===null||identity(snapshot)!==disclosed;}
+  function resetReveal(){generation++;disclosed=null;}
+  sync();return Object.freeze({sync,canNext,next,canReveal,reveal,isRevealSuppressed,resetReveal,get busy(){return active;}});
 }

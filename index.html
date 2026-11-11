@@ -1,6 +1,6 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js; style-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; media-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"><title>尾牙歌曲同步</title><link rel="stylesheet" href="style.css"></head>
-<body><main><header id="intro"><p class="eyebrow">尾牙猜歌 · 主持人 MP3 播放</p><h1>聽同一首歌，一起作答</h1><p>主持人在本頁播放 MP3。同仁手機同步選項，開始作答後限時 15 秒。</p></header>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js; style-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"><title>尾牙歌曲同步</title><link rel="stylesheet" href="style.css"></head>
+<body><main><header id="intro"><p class="eyebrow">尾牙猜歌 · 主持人外部播放</p><h1>聽同一首歌，一起作答</h1><p>主持人透過外部歌曲頁面播放。同仁手機同步選項，開始作答後限時 15 秒。</p></header>
 <p id="notice" role="status">檢查連線設定中…</p><p id="error" role="alert"></p>
 <section id="login" hidden><h2>加入活動</h2><div class="role-tabs"><button id="playerMode" type="button" aria-pressed="true">我是玩家</button><button id="hostMode" type="button" aria-pressed="false">主持人登入</button></div>
 <form id="loginForm"><div id="playerFields"><label>顯示名稱<input id="name" autocomplete="nickname" maxlength="48"></label><p id="invitationStatus" class="small"></p></div>
@@ -10,12 +10,12 @@
 <button id="submitLogin" type="submit">加入活動</button><button id="cancelLogin" type="button" hidden>取消登入</button></form>
 <p class="small">短暫斷網會自動重連。勾選保留登入後，憑證只保存於本分頁 sessionStorage，不使用長期 localStorage；同分頁重新整理可恢復。未勾選時，重新整理即無法恢復原匿名身分。退出會清除登入，不保證能復原。請只在自己的裝置勾選，勿複製分頁。</p></section>
 <section id="session" hidden><div class="bar"><p id="connection"></p><button id="logout" type="button">退出</button></div><p id="progress"></p><h2 id="phase"></h2><p id="timer" aria-live="off"></p>
-<section id="sourcePanel" hidden><h3>本題 MP3 播放</h3><p id="hostPrompt"></p><p id="sourceMeta"></p>
-<label>選擇本題 MP3<input id="mp3File" type="file" accept=".mp3,audio/mpeg"></label><p id="mp3FileName" class="small">尚未選擇 MP3</p>
-<div id="audioMount"></div><div class="audio-buttons"><button id="audioPlay" type="button">播放歌曲</button><button id="audioPause" type="button" class="secondary">暫停</button><button id="audioReplay" type="button" class="secondary">從頭重播</button><button id="audioStop" type="button" class="secondary">停止歌曲</button></div>
-<label>播放位置<input id="audioSeek" type="range" min="0" max="0" step="0.1" value="0"></label><p id="audioTime">0:00 / 0:00</p><p id="audioRemaining">本次播放剩餘 30 秒（上限 30 秒）</p><p id="audioStatus" role="status">請選擇本題 MP3。</p>
-<p class="small">請使用有權播放的 MP3，並核對本題歌曲。檔案只留在主持人本分頁，不會上傳或傳給玩家；切換題目、退出或重新整理後須重新選檔。每次播放最多 30 秒，暫停與拖曳不會重設剩餘秒數，按重播才重新計算。播放完畢或手動停止後，由主持人按「開始 15 秒作答」，再由伺服器開始倒數，不會自動開答。主持人後台含歌名，請勿投影給玩家。</p></section>
-<div id="actions" hidden><button id="start">開始活動</button><button id="listen">準備本題歌曲</button><button id="open">開始 15 秒作答</button><button id="reveal">公布歌曲答案</button><button id="next">下一題</button><p class="small">作答 15 秒結束後，主持人可選擇公布答案，或直接切到下一題。</p></div>
+<section id="sourcePanel" hidden><h3>本題外部歌曲播放</h3>
+<div class="external-warning" role="note"><strong>外部頁面有洩題風險，請勿投影。</strong><p>YouTube 或其他外部頁面可能顯示歌名、演唱者、網址、廣告或登入提示。請使用不對玩家投影的另一個螢幕。連結的瀏覽器狀態列或網址也可能洩題。</p><p><strong>本頁無法確認播放成功，也無法保證 30 秒自動停止。</strong>請主持人自行計時，建議播放不超過 30 秒，並在外部頁面手動停止歌曲。</p></div>
+<p><a id="externalSource" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" aria-disabled="true" tabindex="-1">開啟本題外部歌曲頁面</a></p>
+<button id="externalStopped" type="button" class="secondary" aria-pressed="false" disabled>我已播放並手動停止本題歌曲</button><p id="externalStatus" role="status"></p>
+<p class="small">請只播放你有權使用的來源。本頁不下載、託管或嵌入歌曲，玩家裝置不接收音訊。先播放並手動停止，再按上方確認，最後按「開始 15 秒作答」。切換題目、分頁、登入身分或恢復頁面後須重新確認；確認不是播放偵測。此主持頁不自動顯示歌名或答案，但不是對主持人保密的防作弊介面。</p></section>
+<div id="actions" hidden><button id="start">開始活動</button><button id="listen">準備本題歌曲</button><button id="open">開始 15 秒作答</button><button id="reveal">公布歌曲答案</button><button id="next">下一題</button><p class="small">作答 15 秒結束後，只有在此頁明確按「公布歌曲答案」才會顯示答案；也可直接切到下一題而不顯示。重新登入或恢復頁面後不會自動顯示舊答案。</p></div>
 <div id="choices" aria-label="當題選項"></div><p id="answerStatus" role="status"></p><div id="pendingPanel" hidden><p>上一筆操作的結果尚未確認。已停止新操作，不會自動重送。</p><button id="reconcile">查詢原事件結果</button></div><button id="refresh" type="button">重新確認連線</button>
 <p id="personalTotal" class="personal-total" role="status" hidden></p><p id="terminal" hidden>題目已完成，請等候主持人完成排名與發獎。</p>
 <div id="hostConsole" hidden>
@@ -26,5 +26,5 @@
 <section id="awardPanel"><h2>排名獎項設定</h2><p>由主持人填寫獎項，依名次發放。沒有預設獎項。</p><form id="prizeForm"><div class="form-grid"><label>獎等<select id="prizeTier"></select></label><label>人數<input id="prizeQuantity" type="number" min="1" max="26" value="1" required></label></div><label>獎項內容<input id="prizeContent" maxlength="46" placeholder="填寫禮物、商品或獎金內容" required></label><label>起始名次<input id="prizeFrom" type="number" min="1" max="26" value="1" required></label><p id="prizeRange" class="small"></p><p id="participationNotice" class="notice" hidden>參加獎也限前 26 名，可設定人數、內容及名次範圍；第 27 名以後不發獎。</p><button id="savePrize" type="submit">儲存獎項</button><button id="cancelPrizeEdit" class="secondary" type="button" hidden>取消編輯</button><p id="prizeFeedback" role="status"></p><div id="prizeConflict" class="notice" role="alert" hidden>獎項已由另一操作更新，保留你的草稿但暫停送出。<button id="reloadPrizeDraft" type="button">捨棄草稿並載入最新設定</button></div></form><p id="awardLock" class="small"></p><div id="prizeList"></div></section>
 <section><h2>依排名發獎</h2><p id="settlementStatus" role="status"></p><p id="awardCoverage" class="small"></p><button id="prizeDraw" type="button">依排名發放下一個獎項</button><h3>已發放紀錄</h3><ol id="draws"></ol></section>
 </div></section>
-<details id="playerHelp" hidden><summary>玩法與驗收狀態</summary><p>主持人在本頁播放 MP3，手機只顯示選項。等待開始後，依伺服器倒數在 15 秒內作答；不確定送出結果時請勿重送。</p><p>本機 MP3 功能仍須使用活動音檔與實際主持裝置驗收。</p></details><footer>MP3 僅由主持人裝置播放。沒有後端或公開設定時，本頁會停止，不會改接模擬房間。</footer></main>
+<details id="playerHelp" hidden><summary>玩法與驗收狀態</summary><p>主持人使用外部歌曲頁面播放，手機只顯示選項。等待開始後，依伺服器倒數在 15 秒內作答；不確定送出結果時請勿重送。</p><p>外部歌曲的可用性、播放權限及實際裝置流程仍須活動前驗收。</p></details><footer>歌曲僅由主持人裝置外部播放，開始作答後限時 15 秒。沒有後端或公開設定時，本頁會停止，不會改接模擬房間。</footer></main>
 <script type="module" src="bootstrap.js"></script></body></html>

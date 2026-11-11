@@ -1,7 +1,7 @@
 import {config} from './config.js';
 import {createExternalAdapter,validateConfig} from './adapter.js';
 import {mountHostConsole} from './host-console.js';
-import {mountHostAudio} from './host-audio.js';
+import {mountHostExternalPlayback} from './host-external.js';
 import {createHostQuestionFlow} from './host-question-flow.js';
 const $=id=>document.getElementById(id);
 const rawInvite=new URLSearchParams(location.hash.slice(1)).get('join');
@@ -37,9 +37,9 @@ function loadPinnedSdk(){
 }
 messages.sdk_unavailable='安全連線元件無法載入或已逾時，已停止登入。請稍後重新開啟原本的活動邀請連結；請勿在其他頁面輸入密碼。';
 
-let adapter,hostConsole,hostAudio,hostFlow,mode='player',questionKey='',pageGeneration=0;
+let adapter,hostConsole,hostExternal,hostFlow,mode='player',questionKey='',pageGeneration=0;
 function clearSecrets(){for(const id of ['password'])$(id).value='';}
-function selectMode(next){if(adapter?.getState().busy)return;mode=next;$('hostFields').hidden=mode!=='host';$('playerFields').hidden=mode!=='player';$('hostMode').setAttribute('aria-pressed',String(mode==='host'));$('playerMode').setAttribute('aria-pressed',String(mode==='player'));$('submitLogin').textContent=mode==='host'?'主持人登入':'加入活動';$('submitLogin').disabled=adapter?.getState().busy||adapter?.hasSavedSession()||mode==='player'&&!inviteCode;clearSecrets();}
+function selectMode(next){if(adapter?.getState().busy)return;hostExternal?.clear();hostFlow?.resetReveal();mode=next;$('hostFields').hidden=mode!=='host';$('playerFields').hidden=mode!=='player';$('hostMode').setAttribute('aria-pressed',String(mode==='host'));$('playerMode').setAttribute('aria-pressed',String(mode==='player'));$('submitLogin').textContent=mode==='host'?'主持人登入':'加入活動';$('submitLogin').disabled=adapter?.getState().busy||adapter?.hasSavedSession()||mode==='player'&&!inviteCode;clearSecrets();}
 $('hostMode').onclick=()=>selectMode('host');$('playerMode').onclick=()=>selectMode('player');
 const phases={lobby:'等待活動開始',ready:'等待主持人準備本題歌曲',listen:'請聆聽主持人播放歌曲',answering:'請在 15 秒內作答',closed:'本題作答已截止',revealed:'本題已結算',tiebreak:'同分名次待決定',finished:'排名已確認，進入發獎'};
 function render(v){
@@ -47,34 +47,34 @@ function render(v){
   const saved=adapter?.hasSavedSession();$('restore').hidden=signed||!saved;$('discardSaved').hidden=signed||!saved;$('restore').disabled=v.busy;$('discardSaved').disabled=v.busy;
   $('submitLogin').disabled=v.busy||saved||v.status==='verifying'||mode==='player'&&!inviteCode;$('playerMode').disabled=v.busy;$('hostMode').disabled=v.busy;$('cancelLogin').hidden=!['authenticating','verifying'].includes(v.status);
   if(v.error)showError({code:v.error});
-  hostFlow?.sync();const hideReveal=hostFlow?.isRevealSuppressed(s);hostConsole?.render(hideReveal?{...v,snapshot:{...s,reveal:null}}:v);hostAudio?.sync();$('personalTotal').hidden=!(v.role==='player'&&s?.self?.score!==null&&s?.self?.score!==undefined);$('personalTotal').textContent=$('personalTotal').hidden?'':'你的最終總分：'+s.self.score+' 分';
-  if(!s){$('choices').replaceChildren();$('sourcePanel').hidden=true;$('hostPrompt').textContent='';$('sourceMeta').textContent='';questionKey='';return;}
+  hostFlow?.sync();const hideReveal=!hostFlow||hostFlow.isRevealSuppressed(s);hostConsole?.render(hideReveal?{...v,snapshot:{...s,reveal:null}}:v);hostExternal?.sync();$('personalTotal').hidden=!(v.role==='player'&&s?.self?.score!==null&&s?.self?.score!==undefined);$('personalTotal').textContent=$('personalTotal').hidden?'':'你的最終總分：'+s.self.score+' 分';
+  if(!s){$('choices').replaceChildren();$('sourcePanel').hidden=true;questionKey='';return;}
   $('connection').textContent=v.status==='connected'?'已取得伺服器最新狀態':'連線中斷，已暫停作答與主持操作';
   $('phase').textContent=phases[s.phase];$('progress').textContent=s.index?'第 '+s.index+' / '+s.roundCount+' 題':'';
   $('next').textContent=s.index===s.roundCount?'完成答題並結算':'下一題';
   $('actions').hidden=v.role!=='host';$('sourcePanel').hidden=v.role!=='host'||!s.host;
-  if(v.role==='host'&&s.host){$('hostPrompt').textContent=s.host.prompt;$('sourceMeta').textContent=[s.host.source.title,s.host.source.performer,s.host.source.version].filter(Boolean).join(' · ');}
   const qk=v.role==='player'&&s.question?JSON.stringify([s.epoch,s.question.id,s.question.options]):'';
   if(qk!==questionKey){questionKey=qk;$('choices').replaceChildren();if(qk)for(const [i,label]of s.question.options.entries()){const b=document.createElement('button');b.type='button';b.textContent=label;const id=s.question.id,epoch=s.epoch;b.onclick=()=>{const current=adapter.getState().snapshot;if(current?.question?.id===id&&current.epoch===epoch)run(()=>adapter.answer(i));};$('choices').append(b);}}
   $('answerStatus').textContent=v.role==='player'&&s.phase==='tiebreak'?'答題已完成，正在確認同分名次。':v.role==='player'&&s.phase==='finished'?'答題與排名結算已完成。':s.self?.answered?'已收到本題作答，不可更改':v.role==='player'&&s.phase==='lobby'?'等待主持人開始活動。':v.role==='player'&&['ready','listen'].includes(s.phase)?'本題選項已同步，等待主持人開始 15 秒作答。':'';
   $('terminal').textContent=s.phase==='finished'?'排名已確認，請等候主持人發獎。':'題目已完成，請等候主持人完成排名與發獎。';
   $('pendingPanel').hidden=!v.pending;$('reconcile').disabled=v.busy;$('refresh').disabled=v.busy;$('terminal').hidden=v.role==='host'||!['finished','tiebreak'].includes(s.phase);sync();
 }
-function sync(){if(!adapter)return;const v=adapter.getState(),s=v.snapshot;for(const b of $('choices').querySelectorAll('button'))b.disabled=!adapter.canAnswer();for(const id of ['start','listen','open'])$(id).disabled=!adapter.canCommand(id,id==='open'&&hostAudio?.canOpen());$('reveal').disabled=!hostFlow?.canReveal();$('next').disabled=!hostFlow?.canNext();
+function sync(){if(!adapter)return;const v=adapter.getState(),s=v.snapshot;for(const b of $('choices').querySelectorAll('button'))b.disabled=!adapter.canAnswer();for(const id of ['start','listen','open'])$(id).disabled=!adapter.canCommand(id,id==='open'&&hostExternal?.canOpen());$('reveal').disabled=!hostFlow?.canReveal();$('next').disabled=!hostFlow?.canNext();
   hostConsole?.sync();
-  hostAudio?.sync();
+  hostExternal?.sync();
   $('timer').textContent=s?.phase==='answering'?'剩餘 '+Math.max(0,Math.ceil((s.deadline-adapter.serverNow())/1000))+' 秒':'';
 }
 async function run(action){const g=pageGeneration;$('error').textContent='';try{return await action();}catch(e){if(g===pageGeneration)showError(e);}}
 $('loginForm').onsubmit=e=>{e.preventDefault();if(!adapter||adapter.getState().busy)return;const credentials=mode==='host'?{username:$('username').value.trim(),password:$('password').value,remember:$('remember').checked}:{name:$('name').value,code:inviteCode,remember:$('remember').checked};clearSecrets();run(()=>mode==='host'?adapter.loginHost(credentials):adapter.joinPlayer(credentials));};
-async function leave(){hostAudio?.clear();pageGeneration++;clearSecrets();$('username').value='admin';$('name').value='';const g=pageGeneration;const result=await adapter.logout();if(g!==pageGeneration)return;$('notice').textContent=result.status==='server_unconfirmed'?'本頁已退出；伺服器登出結果未確認。':'本頁已退出。';}
+async function leave(){hostExternal?.clear();hostFlow?.resetReveal();pageGeneration++;clearSecrets();$('username').value='admin';$('name').value='';const g=pageGeneration;const result=await adapter.logout();if(g!==pageGeneration)return;$('notice').textContent=result.status==='server_unconfirmed'?'本頁已退出；伺服器登出結果未確認。':'本頁已退出。';}
 $('restore').onclick=()=>run(()=>adapter.resume());$('discardSaved').onclick=leave;
 $('logout').onclick=leave;$('cancelLogin').onclick=leave;
-for(const id of ['start','listen','open','reveal','next'])$(id).onclick=()=>run(()=>{if(id==='next')return hostFlow.next();if(id==='reveal')return hostFlow.reveal();if(id==='open'){if(!adapter.canCommand('open',hostAudio?.canOpen())||!hostAudio.prepareAnswer())return;return adapter.command('open',true);}return adapter.command(id);});
+for(const id of ['start','listen','open','reveal','next'])$(id).onclick=()=>run(()=>{if(id==='next')return hostFlow.next();if(id==='reveal')return hostFlow.reveal();if(id==='open'){if(!adapter.canCommand('open',hostExternal?.canOpen())||!hostExternal.prepareAnswer())return;return adapter.command('open',true);}return adapter.command(id);});
 $('reconcile').onclick=()=>run(async()=>{const outcome=await adapter.reconcile();if(outcome==='unknown')$('error').textContent='原事件仍未確認，繼續保留並阻擋新操作，不會重送。';});
 $('refresh').onclick=()=>run(()=>adapter.refresh());
-try{validateConfig(config);await loadPinnedSdk();adapter=createExternalAdapter({config,createClient:globalThis.supabase?.createClient,ledger:sessionStorage,consentStorage:sessionStorage,onChange:render});$('notice').textContent='主持人可選擇 MP3 在本頁播放；玩家只會收到選項。';$('login').hidden=false;
-  hostConsole=mountHostConsole({adapter,run});hostAudio=mountHostAudio({adapter,onChange:sync});hostFlow=createHostQuestionFlow({adapter,onChange:()=>render(adapter.getState())});selectMode('player');
+try{validateConfig(config);await loadPinnedSdk();adapter=createExternalAdapter({config,createClient:globalThis.supabase?.createClient,ledger:sessionStorage,consentStorage:sessionStorage,onChange:render});$('notice').textContent='主持人使用外部歌曲頁面播放並手動停止；玩家只會收到選項。';$('login').hidden=false;
+  hostConsole=mountHostConsole({adapter,run});hostExternal=mountHostExternalPlayback({adapter,onChange:sync});hostFlow=createHostQuestionFlow({adapter,onChange:()=>render(adapter.getState())});selectMode('player');
+  window.addEventListener('pagehide',()=>hostFlow.resetReveal());window.addEventListener('pageshow',()=>{hostFlow.resetReveal();render(adapter.getState());adapter.poll();});
   if(adapter.hasSavedSession())run(()=>adapter.resume());
   const poll=async()=>{if(!document.hidden)await adapter.poll();setTimeout(poll,500);};poll();setInterval(sync,100);document.addEventListener('visibilitychange',()=>{if(!document.hidden)adapter.poll();});
 }catch(e){showError(e);$('notice').textContent='連線未啟用';$('login').hidden=true;}
