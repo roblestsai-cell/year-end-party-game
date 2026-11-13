@@ -1,3 +1,4 @@
+import {mountHostOpening} from './host-opening.mjs';
 import {config} from './config.js';
 import {createExternalAdapter,validateConfig} from './adapter.js';
 import {mountHostConsole} from './host-console.js';
@@ -37,12 +38,13 @@ function loadPinnedSdk(){
 }
 messages.sdk_unavailable='安全連線元件無法載入或已逾時，已停止登入。請稍後重新開啟原本的活動邀請連結；請勿在其他頁面輸入密碼。';
 
-let adapter,hostConsole,hostExternal,hostFlow,mode='player',questionKey='',pageGeneration=0;
+let adapter,hostConsole,hostExternal,hostFlow,hostOpening,mode='player',questionKey='',pageGeneration=0;
 function clearSecrets(){for(const id of ['password'])$(id).value='';}
 function selectMode(next){if(adapter?.getState().busy)return;hostExternal?.clear();hostFlow?.resetReveal();mode=next;$('hostFields').hidden=mode!=='host';$('playerFields').hidden=mode!=='player';$('hostMode').setAttribute('aria-pressed',String(mode==='host'));$('playerMode').setAttribute('aria-pressed',String(mode==='player'));$('submitLogin').textContent=mode==='host'?'主持人登入':'加入活動';$('submitLogin').disabled=adapter?.getState().busy||adapter?.hasSavedSession()||mode==='player'&&!inviteCode;clearSecrets();}
 $('hostMode').onclick=()=>selectMode('host');$('playerMode').onclick=()=>selectMode('player');
 const phases={lobby:'等待活動開始',ready:'等待主持人準備本題歌曲',listen:'請聆聽主持人播放歌曲',answering:'請在 15 秒內作答',closed:'本題作答已截止',revealed:'本題已結算',tiebreak:'同分名次待決定',finished:'排名已確認，進入發獎'};
 function render(v){
+  hostOpening?.sync();
   const signed=!!v.role,s=v.snapshot;document.body.classList.toggle("player-session",v.role==="player");$("playerHelp").hidden=v.role!=="player";$('login').hidden=signed;$('session').hidden=!signed;
   const saved=adapter?.hasSavedSession();$('restore').hidden=signed||!saved;$('discardSaved').hidden=signed||!saved;$('restore').disabled=v.busy;$('discardSaved').disabled=v.busy;
   $('submitLogin').disabled=v.busy||saved||v.status==='verifying'||mode==='player'&&!inviteCode;$('playerMode').disabled=v.busy;$('hostMode').disabled=v.busy;$('cancelLogin').hidden=!['authenticating','verifying'].includes(v.status);
@@ -61,18 +63,20 @@ function render(v){
 }
 function sync(){if(!adapter)return;const v=adapter.getState(),s=v.snapshot;for(const b of $('choices').querySelectorAll('button'))b.disabled=!adapter.canAnswer();for(const id of ['start','listen','open'])$(id).disabled=!adapter.canCommand(id,id==='open'&&hostExternal?.canOpen());$('reveal').disabled=!hostFlow?.canReveal();$('next').disabled=!hostFlow?.canNext();
   hostConsole?.sync();
+  hostOpening?.sync();
   hostExternal?.sync();
   $('timer').textContent=s?.phase==='answering'?'剩餘 '+Math.max(0,Math.ceil((s.deadline-adapter.serverNow())/1000))+' 秒':'';
 }
 async function run(action){const g=pageGeneration;$('error').textContent='';try{return await action();}catch(e){if(g===pageGeneration)showError(e);}}
 $('loginForm').onsubmit=e=>{e.preventDefault();if(!adapter||adapter.getState().busy)return;const credentials=mode==='host'?{username:$('username').value.trim(),password:$('password').value,remember:$('remember').checked}:{name:$('name').value,code:inviteCode,remember:$('remember').checked};clearSecrets();run(()=>mode==='host'?adapter.loginHost(credentials):adapter.joinPlayer(credentials));};
-async function leave(){hostExternal?.clear();hostFlow?.resetReveal();pageGeneration++;clearSecrets();$('username').value='admin';$('name').value='';const g=pageGeneration;const result=await adapter.logout();if(g!==pageGeneration)return;$('notice').textContent=result.status==='server_unconfirmed'?'本頁已退出；伺服器登出結果未確認。':'本頁已退出。';}
+async function leave(){hostOpening?.stop();hostExternal?.clear();hostFlow?.resetReveal();pageGeneration++;clearSecrets();$('username').value='admin';$('name').value='';const g=pageGeneration;const result=await adapter.logout();if(g!==pageGeneration)return;$('notice').textContent=result.status==='server_unconfirmed'?'本頁已退出；伺服器登出結果未確認。':'本頁已退出。';}
 $('restore').onclick=()=>run(()=>adapter.resume());$('discardSaved').onclick=leave;
 $('logout').onclick=leave;$('cancelLogin').onclick=leave;
 for(const id of ['start','listen','open','reveal','next'])$(id).onclick=()=>run(()=>{if(id==='next')return hostFlow.next();if(id==='reveal')return hostFlow.reveal();if(id==='open'){if(!adapter.canCommand('open',hostExternal?.canOpen())||!hostExternal.prepareAnswer())return;return adapter.command('open',true);}return adapter.command(id);});
 $('reconcile').onclick=()=>run(async()=>{const outcome=await adapter.reconcile();if(outcome==='unknown')$('error').textContent='原事件仍未確認，繼續保留並阻擋新操作，不會重送。';});
 $('refresh').onclick=()=>run(()=>adapter.refresh());
 try{validateConfig(config);await loadPinnedSdk();adapter=createExternalAdapter({config,createClient:globalThis.supabase?.createClient,ledger:sessionStorage,consentStorage:sessionStorage,onChange:render});$('notice').textContent='主持人使用外部歌曲頁面播放並手動停止；玩家只會收到選項。';$('login').hidden=false;
+  hostOpening=mountHostOpening({getState:()=>adapter.getState()});
   hostConsole=mountHostConsole({adapter,run});hostExternal=mountHostExternalPlayback({adapter,onChange:sync});hostFlow=createHostQuestionFlow({adapter,onChange:()=>render(adapter.getState())});selectMode('player');
   window.addEventListener('pagehide',()=>hostFlow.resetReveal());window.addEventListener('pageshow',()=>{hostFlow.resetReveal();render(adapter.getState());adapter.poll();});
   if(adapter.hasSavedSession())run(()=>adapter.resume());
