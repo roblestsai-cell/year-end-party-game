@@ -5,7 +5,7 @@ export function mountHostOpening({getState,doc=document,win=window}) {
   const status=$('openingStatus'), volume=$('openingVolume');
   const source='./media/party-opening-20261113.mp3';
   let generation=0, loading=false, state='idle', disposed=false, loaded=false, wantsPlay=false;
-  const allowed=()=>!disposed&&!doc.hidden&&getState()?.role==='host'&&getState()?.status==='connected'&&!!getState()?.snapshot?.host;
+  const allowed=()=>{const v=getState();return !disposed&&!doc.hidden&&v?.role==='host'&&v?.status==='connected'&&v?.snapshot?.role==='host';};
   const labels={idle:'開場音訊已就緒，按下播放才會出聲。',loading:'正在載入開場音訊…',playing:'開場播放中。',paused:'開場已暫停，按播放可接續。',ended:'開場播放完畢，可按從頭重播。',error:'開場未能播放，請確認裝置音量與連線，再按播放重試。'};
   function render(){
     const ok=allowed();panel.hidden=!ok;play.disabled=!ok||loading||state==='playing';
