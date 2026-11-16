@@ -20,7 +20,7 @@ export function mountHostOpening({getState,doc=document,win=window}) {
     render();
   }
   async function begin(fromStart=false){
-    if(!allowed()||loading)return;
+    if(!allowed()||loading||(!fromStart&&state==='playing'))return;
     if(fromStart){audio.pause();try{audio.currentTime=0;}catch{}}
     const retry=state==='error',g=++generation;loading=true;wantsPlay=true;state='loading';render();
     if(!loaded){audio.src=source;loaded=true;}else if(retry)audio.load();
