@@ -1,0 +1,2 @@
+/* Isolated player-only styles; legacy host CSS is untouched. */
+main{max-width:42rem;margin:0 auto;padding:1rem}#joinForm{display:grid;gap:1rem}#joinForm label{display:grid;gap:.4rem}#joinForm input{font:inherit;min-height:2.8rem;max-width:100%;box-sizing:border-box}#choices{display:grid;gap:.8rem}#choices button{min-height:3.4rem;text-align:left;white-space:normal;overflow-wrap:anywhere;font:inherit}#choices[hidden],[hidden]{display:none!important}#timer{font-variant-numeric:tabular-nums;font-size:1.35rem}footer{margin-top:2rem;line-height:1.6}.notice{line-height:1.5}
