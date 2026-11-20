@@ -4,6 +4,21 @@ const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefine
 function keyed(node,key,render){if(node.dataset.key!==key){node.dataset.key=key;node.replaceChildren();render(node);}}
 export function mountHostConsole({adapter,run}){
  let latest=null,editId=null,tieHistoryKey='',draftBase=null,tiePresentationKey='';
+ let rosterTimer=null,rosterActive=false;
+ const stopRoster=()=>{clearTimeout(rosterTimer);rosterTimer=null;rosterActive=false;};
+ const renderRoster=()=>{
+  const s=latest;if(!s)return;
+  const count=s.roster.length+' 位已加入';if($('rosterCount').textContent!==count)$('rosterCount').textContent=count;
+  keyed($('roster'),JSON.stringify(s.roster),box=>{if(!s.roster.length)box.append(el('p','尚無同仁加入。','empty'));for(const p of s.roster){const row=el('li');row.dataset.playerId=p.id;row.append(el('span',displayName(p)),el('span',{joined:'已加入',revoked:'登入已撤銷',expired:'登入已過期'}[p.status],'badge '+p.status));box.append(row);}});
+ };
+ const tickRoster=()=>{
+  rosterTimer=null;if(!rosterActive)return;
+  renderRoster();rosterTimer=setTimeout(tickRoster,5000);
+ };
+ const scheduleRoster=()=>{if(!rosterActive){rosterActive=true;tickRoster();}};
+ window.addEventListener('pagehide',stopRoster);
+ window.addEventListener('pageshow',()=>{if(latest)scheduleRoster();});
+
  function tieTiming(s){
   const last=s?.ties?.history.at(-1),now=adapter.serverNow(),holding=!!last&&(!Number.isFinite(now)||now<s.ties.readyAt);
   return {last,now,holding,key:JSON.stringify([last?.startedAt,last?.rank,last?.winnerId,s?.ties?.readyAt,holding])};
@@ -27,9 +42,8 @@ export function mountHostConsole({adapter,run}){
  $('prizeDraw').onclick=()=>run(()=>adapter.hostAction('prizeDraw'));
  function render(v){
   const timing=tieTiming(v.snapshot),s=tiePresentation(v.snapshot,timing);tiePresentationKey=timing.key;latest=s?.role==='host'?s:null;$('hostConsole').hidden=!latest;
-  if(!latest){for(const id of ['roster','ranking','remainingRanks','prizeList','draws','tieCandidates']){$(id).replaceChildren();delete $(id).dataset.key;}$('revealResult').textContent='';$('tieResult').textContent='';$('settlementStatus').textContent='';$('prizeContent').value='';$('remainingBox').open=false;$('prizeTier').value='頭獎';$('prizeQuantity').value='1';$('prizeFrom').value='1';$('prizeFeedback').textContent='';$('prizeConflict').hidden=true;editId=null;draftBase=null;tieHistoryKey='';tiePresentationKey='';const canvas=$('tieWheel');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);return;}
-  $('rosterCount').textContent=s.roster.length+' 位已加入';
-  keyed($('roster'),JSON.stringify(s.roster),box=>{if(!s.roster.length)box.append(el('p','尚無同仁加入。','empty'));for(const p of s.roster){const row=el('li');row.dataset.playerId=p.id;row.append(el('span',displayName(p)),el('span',{joined:'已加入',revoked:'登入已撤銷',expired:'登入已過期'}[p.status],'badge '+p.status));box.append(row);}});
+  if(!latest){stopRoster();for(const id of ['roster','ranking','remainingRanks','prizeList','draws','tieCandidates']){$(id).replaceChildren();delete $(id).dataset.key;}$('revealResult').textContent='';$('tieResult').textContent='';$('settlementStatus').textContent='';$('prizeContent').value='';$('remainingBox').open=false;$('prizeTier').value='頭獎';$('prizeQuantity').value='1';$('prizeFrom').value='1';$('prizeFeedback').textContent='';$('prizeConflict').hidden=true;editId=null;draftBase=null;tieHistoryKey='';tiePresentationKey='';const canvas=$('tieWheel');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);return;}
+  scheduleRoster();
   $('revealPanel').hidden=!s.reveal;$('revealResult').textContent=s.reveal?'正確選項：'+s.reveal.answerText+(s.reveal.explanation?'。'+s.reveal.explanation:''):'';
   $('rankingTitle').textContent=s.rankingFinal?'最終排名 · 前 26 名':'目前排名 · 前 26 名';
   const nameKey=JSON.stringify(s.roster.map(p=>[p.id,p.name]));
