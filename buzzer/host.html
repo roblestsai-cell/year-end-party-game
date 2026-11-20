@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>尾牙搶答｜主持人</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script type="module" src="js/host.js"></script>
+</head>
+<body class="host">
+  <div id="mock-banner" class="mock-banner" hidden>模擬模式：任何帳號密碼都能登入，只在這台電腦測試用</div>
+
+  <main>
+    <section id="loading" class="card"><p class="muted">連線中…</p></section>
+
+    <section id="login" class="card" hidden>
+      <h1>主持人登入</h1>
+      <form id="login-form">
+        <label for="email">帳號（Email）</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">密碼</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="submit" class="primary">登入</button>
+        <p id="login-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section id="console" hidden>
+      <div class="stage">
+        <p id="round" class="round"></p>
+        <div id="big" class="big host-big"></div>
+        <p id="status" class="status"></p>
+        <button id="start" class="primary start" type="button">開始倒數</button>
+      </div>
+
+      <div class="side">
+        <div class="card">
+          <h2>玩家掃描加入</h2>
+          <div id="qr" class="qr"></div>
+          <p><a id="player-link" target="_blank" rel="noopener"></a></p>
+        </div>
+        <div class="card">
+          <h2>玩家名單（<span id="count">0</span> 人）</h2>
+          <ol id="players" class="players"></ol>
+        </div>
+        <div class="tools">
+          <button id="clear" type="button" class="ghost">清空名單</button>
+          <button id="logout" type="button" class="ghost">登出</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

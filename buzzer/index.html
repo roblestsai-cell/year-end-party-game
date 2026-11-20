@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>尾牙搶答</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+  <script type="module" src="js/player.js"></script>
+</head>
+<body class="player">
+  <div id="mock-banner" class="mock-banner" hidden>模擬模式：只在這台電腦測試用</div>
+
+  <main>
+    <section id="loading" class="card"><p class="muted">連線中…</p></section>
+
+    <section id="join" class="card" hidden>
+      <h1>尾牙搶答</h1>
+      <form id="join-form" autocomplete="off">
+        <label for="name">請輸入你的姓名</label>
+        <input id="name" name="name" maxlength="20" required placeholder="例如：王小明">
+        <button type="submit" class="primary">加入</button>
+        <p id="join-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section id="game" hidden>
+      <p class="who">玩家：<strong id="me"></strong></p>
+      <div id="big" class="big"></div>
+      <p id="status" class="status"></p>
+      <button id="buzz" class="buzz" type="button" disabled>搶答</button>
+      <p id="note" class="note" hidden></p>
+    </section>
+  </main>
+</body>
+</html>
