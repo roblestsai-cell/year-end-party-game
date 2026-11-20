@@ -4,18 +4,22 @@ const MESSAGES={join_input_required:'請填寫有效姓名。',invite_required:'
 export function playerView(v,{fresh=false,now=Infinity,hidden=false}={}) {
   const signed=v.role==='player',s=signed?v.snapshot:null;
   const show=!!s&&v.status==='connected'&&fresh&&!hidden&&s.phase==='answering'&&!!s.question&&Number.isFinite(s.deadline)&&now<s.deadline;
-  return {signed,phaseText:s?PLAYER_PHASES[s.phase]||'':'',showChoices:show,options:show?s.question.options.slice():[],
+  // Own settled total only (adapter contract: self.score is null before tiebreak/finished). 0 is a valid score.
+  const settled=!!s&&v.status==='connected'&&fresh&&(s.phase==='tiebreak'||s.phase==='finished')&&Number.isSafeInteger(s.self?.score)&&s.self.score>=0;
+  return {signed,phaseText:s?PLAYER_PHASES[s.phase]||'':'',showChoices:show,options:show?s.question.options.slice():[],selfScore:settled?s.self.score:null,
     questionKey:show?JSON.stringify([s.epoch,s.question.id,s.question.options]):'',answered:!!s?.self?.answered,
     seconds:show?Math.max(0,Math.ceil((s.deadline-now)/1000)):0};
 }
 export function mountPlayerPage({doc,adapter,inviteCode=null,getSavedRole=()=>null,setTimer=setTimeout,clearTimer=clearTimeout}) {
   const $=id=>doc.getElementById(id);
+  // #selfScore is optional: an older cached player.html may lack it. Degrade to no score display, never throw.
+  const setSelfScore=t=>{const el=$('selfScore');if(!el)return;el.textContent=t;el.hidden=!t;};
   let key='',pollTimer=null,uiTimer=null,stopped=false,blocked=false;
   let contextInvite=typeof inviteCode==='string'&&!!inviteCode.trim()&&inviteCode.length<=256&&!/[\u0000-\u001f\u007f]/.test(inviteCode)?inviteCode.trim():null;
   const showError=e=>{$('error').textContent=e?(MESSAGES[e.code]||'操作未完成，請重新確認連線。'):'';};
   const run=async fn=>{if(stopped||blocked)return null;showError(null);try{return await fn();}catch(e){showError(e);return null;}finally{if(!stopped)render();}};
   const viewNow=()=>playerView(adapter.getState(),{fresh:adapter.isFresh(),now:adapter.serverNow(),hidden:!!doc.hidden});
-  function clearChoices(){key='';$('choices').replaceChildren();$('choices').hidden=true;$('timer').textContent='';$('answerStatus').textContent='';}
+  function clearChoices(){key='';$('choices').replaceChildren();$('choices').hidden=true;$('timer').textContent='';$('answerStatus').textContent='';setSelfScore('');}
   function render(){
     if(stopped){clearChoices();return;}
     const v=adapter.getState(),view=viewNow(); let saved=false;
@@ -31,6 +35,8 @@ export function mountPlayerPage({doc,adapter,inviteCode=null,getSavedRole=()=>nu
     $('ticketPending').hidden=!noticeVisible;
     $('ticketPending').textContent=noticeVisible?'已加入活動，抽獎號碼功能尚未開放。請等候主持人通知；本頁不會自行產生號碼。':'';
     if(blocked){clearChoices();return;}
+    const scoreText=view.selfScore===null?'':'你的總分：'+view.selfScore+' 分';
+    setSelfScore(scoreText);
     $('choices').hidden=!view.showChoices;
     if(view.questionKey!==key){key=view.questionKey;$('choices').replaceChildren();
       view.options.forEach((label,i)=>{const b=doc.createElement('button');b.type='button';b.textContent=label;const at=key;
