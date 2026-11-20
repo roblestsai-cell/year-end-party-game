@@ -20,6 +20,12 @@
 <div id="choices" aria-label="當題選項"></div><p id="answerStatus" role="status"></p><div id="pendingPanel" hidden><p>上一筆操作的結果尚未確認。已停止新操作，不會自動重送。</p><button id="reconcile">查詢原事件結果</button></div><button id="refresh" type="button">重新確認連線</button>
 <p id="personalTotal" class="personal-total" role="status" hidden></p><p id="terminal" hidden>題目已完成，請等候主持人完成排名與發獎。</p>
 <div id="hostConsole" hidden>
+<section id="officialResetStatus" aria-labelledby="officialResetTitle">
+<h2 id="officialResetTitle">重置活動</h2>
+<p id="officialResetHelp" class="small">下列兩項尚未開放。按鈕目前無法使用，不會清除猜歌進度、抽獎結果或玩家資料。</p>
+<button id="quizProgressResetPending" type="button" disabled aria-describedby="officialResetHelp">重置猜歌進度（尚未開放）</button>
+<button id="raffleResetPending" type="button" disabled aria-describedby="officialResetHelp">重置抽獎（尚未開放）</button>
+</section>
 <section id="rosterPanel"><div class="bar"><h2>已加入同仁</h2><span id="rosterCount" class="badge"></span></div><p class="small">這是已加入活動的名單，不代表即時在線或裝置仍連線。</p><ul id="roster" class="roster-list"></ul></section>
 <section id="revealPanel" hidden><h2>本題結算</h2><p id="revealResult"></p></section>
 <section><h2 id="rankingTitle">目前排名 · 前 26 名</h2><p id="rankingNote" class="small"></p><ol id="ranking" class="rank-list"></ol><details id="remainingBox" hidden><summary id="remainingSummary">其餘排名</summary><ol id="remainingRanks" class="rank-list"></ol></details></section>
